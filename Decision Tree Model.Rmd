@@ -1,0 +1,71 @@
+---
+title: "Decision Tree"
+author: "Ethan Tran"
+date: "2024-12-05"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(tidymodels)
+library(janitor)
+library(corrplot)
+library(dplyr)
+library(readr)
+library(rpart)
+library(rpart.plot)
+library(ranger)
+library(vip)
+library(xgboost)
+library(tune)
+```
+
+```{r}
+load("C:/Users/Ethan Tran/PSTAT131/Final Project/RDA/nba_hof_model_setup.rda")
+set.seed(1200)
+```
+
+```{r}
+nba_decision_tree <- decision_tree() %>% 
+  set_mode("classification") %>% 
+  set_engine("rpart")
+```
+
+```{r}
+nba_decision_tree_wf <- workflow() %>%
+  add_recipe(hof_recipe) %>%
+  add_model(nba_decision_tree %>% set_args(cost_complexity = tune()))
+```
+
+```{r}
+nba_prmtrs_grid <- grid_regular(cost_complexity(range = c(-3, -1)), levels = 10)
+```
+
+```{r}
+nba_dt_tune_res <- tune_grid(
+  nba_decision_tree_wf,
+  resamples = NbaFolds, 
+  grid = nba_prmtrs_grid, 
+  metrics = metric_set(roc_auc)
+)
+```
+
+```{r}
+nba_best_pruned_tree <- arrange(collect_metrics(nba_dt_tune_res), desc(mean))
+nba_best_pruned_tree
+```
+
+```{r}
+nba_dt_best_complex <- select_best(nba_dt_tune_res)
+nba_dt_best_complex
+```
+
+```{r}
+nba_dt_final <- finalize_workflow(nba_decision_tree_wf, nba_dt_best_complex)
+nba_dt_final_fit <- fit(nba_dt_final, data=NbaTrain)
+```
+
+```{r}
+save(nba_dt_tune_res, nba_dt_final_fit, file = "C:/Users/Ethan Tran/PSTAT131/Final Project/RDA/nba_decision_tree_model.rda")
+```
