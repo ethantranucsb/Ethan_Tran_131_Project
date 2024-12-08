@@ -1,0 +1,68 @@
+---
+title: "Logistic Regression"
+author: "Ethan Tran"
+date: "2024-12-06"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(tidymodels)
+library(janitor)
+library(corrplot)
+library(dplyr)
+library(readr)
+library(rpart)
+library(rpart.plot)
+library(ranger)
+library(vip)
+library(xgboost)
+library(tune)
+library(parsnip)
+library(discrim)
+```
+
+```{r}
+load("C:/Users/Ethan Tran/PSTAT131/Final Project/RDA/nba_hof_model_setup.rda")
+set.seed(1200)
+```
+
+```{r}
+nba_lreg <- logistic_reg() %>%
+  set_mode("classification") %>%
+  set_engine("glm")
+```
+
+```{r}
+nba_lreg_workflow <- workflow() %>%
+  add_model(nba_lreg) %>%
+  add_recipe(hof_recipe)
+```
+
+```{r}
+nba_lreg_fit <- fit(nba_lreg_workflow, NbaTrain)
+predict(nba_lreg_fit, new_data = NbaTrain, type = "prob")
+```
+
+```{r}
+nba_lreg_folds <- fit_resamples(nba_lreg_workflow, NbaFolds)
+collect_metrics(nba_lreg_folds)
+```
+
+```{r}
+save(nba_lreg_fit, nba_lreg_folds, file = "C:/Users/Ethan Tran/PSTAT131/Final Project/RDA/nba_lreg_model.rda")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+

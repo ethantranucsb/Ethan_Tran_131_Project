@@ -1,0 +1,56 @@
+---
+title: "Linear Discriminant Analysis"
+author: "Ethan Tran"
+date: "2024-12-06"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(tidymodels)
+library(janitor)
+library(corrplot)
+library(dplyr)
+library(readr)
+library(rpart)
+library(rpart.plot)
+library(ranger)
+library(vip)
+library(xgboost)
+library(tune)
+library(parsnip)
+library(discrim)
+library(workflows)
+```
+
+```{r}
+load("C:/Users/Ethan Tran/PSTAT131/Final Project/RDA/nba_hof_model_setup.rda")
+set.seed(1200)
+```
+
+```{r}
+nba_lda_model <- discrim_linear() %>%
+  set_mode("classification") %>%
+  set_engine("MASS")
+```
+
+```{r}
+nba_lda_workflow <- workflow() %>%
+  add_model(nba_lda_model) %>%
+  add_recipe(hof_recipe)
+```
+
+```{r}
+nba_lda_fit <- fit(nba_lda_workflow, NbaTrain)
+predict(nba_lda_fit, new_data = NbaTrain, type = "prob")
+```
+
+```{r}
+nba_lda_folds <- fit_resamples(nba_lda_workflow, NbaFolds)
+collect_metrics(nba_lda_folds)
+```
+
+```{r}
+save(nba_lda_fit, nba_lda_folds, file = "C:/Users/Ethan Tran/PSTAT131/Final Project/RDA/nba_lda_model.rda")
+```

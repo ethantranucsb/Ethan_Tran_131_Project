@@ -1,0 +1,77 @@
+---
+title: "Random Forest"
+author: "Ethan Tran"
+date: "2024-12-06"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(tidymodels)
+library(janitor)
+library(corrplot)
+library(dplyr)
+library(readr)
+library(rpart)
+library(rpart.plot)
+library(ranger)
+library(vip)
+library(xgboost)
+library(tune)
+library(parsnip)
+library(discrim)
+library(workflows)
+```
+
+```{r}
+load("C:/Users/Ethan Tran/PSTAT131/Final Project/RDA/nba_hof_model_setup.rda")
+set.seed(1200)
+```   
+
+```{r}
+nba_random_forest <- rand_forest(mtry=tune(), trees=tune(), min_n=tune()) %>%
+  set_engine("ranger", importance = "impurity") %>%
+  set_mode("classification")
+```
+
+```{r}
+nba_rf_workflow <- workflow() %>%
+  add_model(nba_random_forest) %>%
+  add_recipe(hof_recipe)
+```
+
+```{r}
+nba_rf_prmtrs_grid <- grid_regular(mtry(range = c(2, 13)), trees(range = c(50, 500)), 
+                                  min_n(range = c(2, 10)), levels = 10)
+```
+
+```{r}
+nba_rf_tune_res <- tune_grid(
+  nba_rf_workflow,
+  resamples = NbaFolds,
+  grid = nba_rf_prmtrs_grid, 
+  metrics = metric_set(roc_auc)
+)
+```
+
+```{r}
+best_nba_rf_auc <- arrange(collect_metrics(nba_rf_tune_res), desc(mean))
+best_nba_rf_auc
+```
+
+```{r}
+best_rf_complex <- select_best(nba_rf_tune_res)
+best_rf_complex
+```
+
+```{r}
+nba_rf_final_auc <- finalize_workflow(nba_rf_workflow, best_rf_complex)
+nba_rf_final_fit <- fit(nba_rf_final_auc, data = NbaTrain)
+nba_rf_final_fit
+```
+
+```{r}
+save(nba_rf_tune_res, nba_rf_final_fit, best_nba_rf_auc,
+     file = "C:/Users/Ethan Tran/PSTAT131/Final Project/RDA/nba_random_forest_model.rda")
+```

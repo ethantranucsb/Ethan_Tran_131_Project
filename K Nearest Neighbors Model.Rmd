@@ -1,0 +1,74 @@
+---
+title: "K Nearest Neighbors"
+author: "Ethan Tran"
+date: "2024-12-07"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(tidymodels)
+library(janitor)
+library(corrplot)
+library(dplyr)
+library(readr)
+library(rpart)
+library(rpart.plot)
+library(ranger)
+library(vip)
+library(xgboost)
+library(tune)
+library(parsnip)
+library(discrim)
+library(workflows)
+```
+
+```{r}
+load("C:/Users/Ethan Tran/PSTAT131/Final Project/RDA/nba_hof_model_setup.rda")
+set.seed(1200)
+```
+
+```{r}
+nba_knn_model <- nearest_neighbor(neighbors = tune()) %>%
+  set_mode("classification") %>%
+  set_engine("kknn")
+```
+
+```{r}
+nba_knn_workflow <- workflow() %>%
+  add_model(nba_knn_model) %>%
+  add_recipe(hof_recipe)
+```
+
+```{r}
+nba_knn_prmtrs_grid <- grid_regular(neighbors(range = c(1,20)), levels = 10)
+```
+
+```{r}
+nba_knn_tune_res <- tune_grid(
+  nba_knn_workflow,
+  resamples = NbaFolds,
+  grid = nba_knn_prmtrs_grid,
+  metrics = metric_set(roc_auc)
+)
+```
+
+```{r}
+best_nba_knn_auc <- arrange(collect_metrics(nba_knn_tune_res), desc(mean))
+best_nba_knn_auc
+```
+
+```{r}
+best_knn_complex <- select_best(nba_knn_tune_res)
+best_knn_complex
+```
+
+```{r}
+nba_knn_final_auc <- finalize_workflow(nba_knn_workflow, best_knn_complex)
+nba_knn_final_fit <- fit(nba_knn_final_auc, data = NbaTrain)
+```
+
+```{r}
+save(nba_knn_tune_res, nba_knn_final_fit, best_knn_complex, file = "C:/Users/Ethan Tran/PSTAT131/Final Project/RDA/nba_knn_model.rda")
+```

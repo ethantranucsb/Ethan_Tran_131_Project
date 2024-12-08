@@ -1,0 +1,69 @@
+---
+title: "Lasso Model"
+author: "Ethan Tran"
+date: "2024-12-06"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(tidymodels)
+library(janitor)
+library(corrplot)
+library(dplyr)
+library(readr)
+library(rpart)
+library(rpart.plot)
+library(ranger)
+library(vip)
+library(xgboost)
+library(tune)
+library(glmnet)
+```
+
+```{r}
+load("C:/Users/Ethan Tran/PSTAT131/Final Project/RDA/nba_hof_model_setup.rda")
+set.seed(1200)
+```
+
+```{r}
+nba_lasso_spec <- multinom_reg(penalty = tune(), mixture = tune()) %>%
+  set_mode("classification") %>%
+  set_engine("glmnet")
+```
+
+```{r}
+nba_lasso_workflow <- workflow() %>%
+  add_recipe(hof_recipe) %>%
+  add_model(nba_lasso_spec)
+```
+
+```{r}
+lasso_prmtrs_grid <- grid_regular(penalty(range=c(-5,5)), mixture(range = c(0,1)), levels = 10)
+lasso_prmtrs_grid
+```
+
+```{r}
+nba_lasso_tune_res <- tune_grid(
+  nba_lasso_workflow,
+  resamples = NbaFolds,
+  grid = lasso_prmtrs_grid,
+  metrics = metric_set(roc_auc)
+)
+```
+
+```{r}
+nba_best_lasso <- arrange(collect_metrics(nba_lasso_tune_res), desc(mean))
+nba_best_lasso
+```
+
+```{r}
+nba_final_lasso <- finalize_workflow(nba_lasso_workflow, best_nba_lasso)
+nba_lasso_final_fit <- fit(nba_final_lasso, data = NbaTrain)
+```
+
+```{r}
+save(nba_lasso_tune_res, nba_lasso_final_fit, 
+     file = "C:/Users/Ethan Tran/PSTAT131/Final Project/RDA/nba_lasso_model.rda")
+```
